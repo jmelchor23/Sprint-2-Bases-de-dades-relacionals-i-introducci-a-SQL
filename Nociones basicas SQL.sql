@@ -13,7 +13,7 @@ FROM transaction
 JOIN company ON transaction.company_id = company.id;
 
 -- Compañía con mayor media de ventas
-SELECT company_name, AVG(amount) as Media_de_Ventas
+SELECT company_name, ROUND(AVG(amount),2) as Media_de_Ventas
 FROM transaction
 JOIN company ON transaction.company_id = company.id
 GROUP BY company_id
@@ -66,7 +66,7 @@ LIMIT 5;
 # NIVEL 2 - EJERCICIO 2.
 -- ¿Cuál es la media de ventas por país? Presenta los resultados ordenados de mayor a menor medio.
 
-SELECT country, AVG(amount) AS Media_ventas_por_pais
+SELECT country, ROUND(AVG(amount),2) AS Media_ventas_por_pais
 FROM transaction
 JOIN company ON transaction.company_id = company.id
 GROUP BY country
