@@ -132,7 +132,7 @@ si tienen más de 400 transacciones o menos*/
 
 SELECT company_name, count(company_id) as cantidad_de_transacciones,
 CASE
-	WHEN count(company_id) > 400 THEN '400 o mas transacciones'
+	WHEN count(company_id) >= 400 THEN '400 o mas transacciones'
     ELSE 'Menos de 400 transacciones'
     END as Descripcion_cantidad_transacciones
 FROM transaction 
