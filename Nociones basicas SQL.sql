@@ -5,17 +5,20 @@ USE transactions;
 -- Lista de países que están generando ventas.
 SELECT DISTINCT country as Países_con_ventas
 FROM transaction
-JOIN company ON transaction.company_id = company.id;
+JOIN company ON transaction.company_id = company.id
+WHERE declined = 0;
 
 -- Desde cuantos países se generan las ventas.
 SELECT count(DISTINCT country) as Cantidad_de_países_con_ventas
 FROM transaction
-JOIN company ON transaction.company_id = company.id;
+JOIN company ON transaction.company_id = company.id
+WHERE declined = 0;
 
 -- Compañía con mayor media de ventas
 SELECT company_name, ROUND(AVG(amount),2) as Media_de_Ventas
 FROM transaction
 JOIN company ON transaction.company_id = company.id
+WHERE declined = 0
 GROUP BY company_id
 ORDER BY Media_de_Ventas DESC
 LIMIT 1;
@@ -23,29 +26,37 @@ LIMIT 1;
 # NIVEL 1 - EJERCICIO 3. (solo subconsultas, sin utilizar JOIN)
 
 -- Todas las transacciones realizadas por empresas de Alemania.
-SELECT transaction.id as Transacciones_de_empresas_Alemanas
+SELECT transaction.id AS Transacciones_de_empresas_Alemanas
 FROM transaction
-WHERE company_id IN (SELECT id FROM company WHERE country = 'Germany');
+WHERE EXISTS (SELECT id
+					FROM company 
+                    WHERE (transaction.company_id = company.id) AND (country = 'Germany')
+                    );
 
 -- Lista las empresas que han realizado transacciones por un monto superior a la media de todas las transacciones
 SELECT company_name AS Empresas_con_transacc_superior_a_la_media 
 FROM company
-WHERE id IN (
+WHERE EXISTS 
+	(
 	SELECT company_id 
     FROM transaction
-	WHERE amount > (
-		SELECT AVG(amount) 
+	WHERE (transaction.company_id = company.id) AND amount > 
+		(
+		SELECT AVG(amount)
         FROM transaction
-                   )
-			); 
+        WHERE declined = 0
+        ) AND declined = 0
+	); 
 
 -- Lista de empresas que no tienen transacciones registradas
 SELECT DISTINCT company_name AS Empresas_sin_transacciones
 FROM company 
-WHERE id  NOT IN (
-			SELECT company_id
-            FROM transaction
-		);
+WHERE NOT EXISTS 
+	(
+	SELECT company_id
+    FROM transaction
+    WHERE company.id = transaction.company_id
+	);
         
 -- ---------------------------------------------------------------
 # NIVEL 2 - EJERCICIO 1.
@@ -53,15 +64,12 @@ WHERE id  NOT IN (
 /*Identifica los cinco días que se generó la mayor cantidad de ingresos en la empresa por ventas. 
 Muestra la fecha de cada transacción junto con el total de las ventas.*/
 
-SELECT grupo_fechas.Fechas, SUM(grupo_fechas.amount) AS ventas_por_fecha
-FROM (	
-    SELECT DATE(timestamp) as Fechas, amount
-	FROM transaction
-	GROUP BY DATE(timestamp), amount
-    ) as grupo_fechas
-GROUP BY grupo_fechas.fechas
+SELECT DATE(timestamp) as Fecha_Transaccion, SUM(amount) AS ventas_por_fecha
+FROM transaction
+WHERE declined = 0
+GROUP BY DATE(timestamp), amount
 ORDER BY ventas_por_fecha DESC
-LIMIT 5;
+LIMIT 5;             
 
 # NIVEL 2 - EJERCICIO 2.
 -- ¿Cuál es la media de ventas por país? Presenta los resultados ordenados de mayor a menor medio.
@@ -69,42 +77,51 @@ LIMIT 5;
 SELECT country, ROUND(AVG(amount),2) AS Media_ventas_por_pais
 FROM transaction
 JOIN company ON transaction.company_id = company.id
+WHERE declined = 0
 GROUP BY country
-ORDER BY Media_ventas_por_pais DESC;
+ORDER BY Media_ventas_por_pais DESC;     
 
 # NIVEL 2 - EJERCICIO 3.
 --  lista de todas las transacciones realizadas por empresas que están ubicadas en el mismo país que “Non Institute”
 
 # USANDO JOIN Y SUBQUERY
-SELECT transaction.id
+SELECT transaction.id, company_name
 FROM transaction
 JOIN company ON transaction.company_id = company.id
-WHERE country = (
+WHERE (company_name <> 'Non Institute') AND country = 
+	(
 	SELECT country  
     FROM company 
     WHERE company_name = 'Non Institute'
-				);
+	);
 
 # USANDO SUBQUERY
 SELECT transaction.id
 FROM transaction
-WHERE company_id IN (
+WHERE company_id IN
+(
 	SELECT id
-    FROM company 
-    WHERE country IN (SELECT country 
-					  FROM company 
-                      WHERE company_name = 'Non Institute'));
-
+    FROM company
+    WHERE country =  
+    (
+		SELECT country 
+		FROM company 
+        WHERE company_name = 'Non Institute'
+	) AND company_name <> 'Non Institute'
+);
+-- -------------------------------------------------------------
 # NIVEL 3 - Ejercicio 1.
 /*Presenta el nombre, teléfono, país, fecha e importe, de aquellas empresas que realizaron transacciones con un valor 
 comprendido entre 350 y 400 euros y en alguna de estas fechas: 
 29 de abril de 2015, 20 de julio de 2018 y 13 de marzo de 2024. 
 Ordena los resultados de mayor a menor cantidad.*/
 
-SELECT company_name, phone, country, DATE(timestamp) as Fecha, amount
+SELECT company_name AS Nombre_compañia, phone AS Telefono, country AS Pais, DATE(timestamp) as Fecha, amount AS Importe
 FROM transaction 
 JOIN company ON transaction.company_id = company.id
-WHERE (amount BETWEEN 350 AND 400) AND ((DATE(timestamp) IN ('2015-04-29','2018-07-20','2024-03-13')))
+WHERE (amount BETWEEN 350 AND 400)
+		AND declined = 0
+		AND ((DATE(timestamp) IN ('2015-04-29','2018-07-20','2024-03-13')))
 ORDER BY amount DESC;
 
 # NIVEL 3 - Ejercicio 2.
@@ -115,10 +132,10 @@ si tienen más de 400 transacciones o menos*/
 
 SELECT company_name, count(company_id) as cantidad_de_transacciones,
 CASE
-	WHEN count(company_id) > 400 THEN 'Mas de 400 transacciones'
-    WHEN count(company_id) = 400 THEN '400 transacciones'
+	WHEN count(company_id) > 400 THEN '400 o mas transacciones'
     ELSE 'Menos de 400 transacciones'
     END as Descripcion_cantidad_transacciones
 FROM transaction 
 JOIN company ON transaction.company_id = company.id
-GROUP BY company_name;
+GROUP BY company_name
+ORDER BY cantidad_de_transacciones DESC;
